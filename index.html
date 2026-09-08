@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CO-STAR 卡牌配對 — 提示詞練習遊戲</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c3660">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CO-STAR配對">
+<style>
+:root{
+  --felt-light:#2f5f9e;
+  --felt:#1c3660;
+  --felt-dark:#0f2038;
+  --wood:#4a4f63;
+  --wood-dark:#33374a;
+  --cream:#fef9ec;
+  --cream-dim:#f2e8d0;
+  --ink:#2a2438;
+  --ink-soft:#5a5470;
+  --amber:#ffd166;
+  --amber-dark:#e0a83e;
+  --led:#8ec9f2;
+  --chip:#0a1626;
+  --ok:#3f9d55;
+  --ok-soft:#e2f5e6;
+  --bad:#d9534f;
+  --bad-soft:#fbe4e3;
+  --shadow-card:0 3px 8px rgba(8,16,40,.35);
+  --shadow-lift:0 14px 28px rgba(8,16,40,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Microsoft JhengHei","Segoe UI",system-ui,sans-serif;
+  color:var(--cream);
+  background:
+    radial-gradient(2px 2px at 12% 18%,rgba(255,255,255,.5),transparent),
+    radial-gradient(1.5px 1.5px at 78% 12%,rgba(255,255,255,.4),transparent),
+    radial-gradient(2px 2px at 60% 30%,rgba(255,255,255,.35),transparent),
+    radial-gradient(1.5px 1.5px at 30% 65%,rgba(255,255,255,.3),transparent),
+    radial-gradient(2px 2px at 90% 70%,rgba(255,255,255,.4),transparent),
+    radial-gradient(1.5px 1.5px at 45% 85%,rgba(255,255,255,.3),transparent),
+    radial-gradient(1300px 900px at 50% 12%,var(--felt-light),var(--felt) 55%,var(--felt-dark));
+  background-attachment:fixed;
+  min-height:100%;
+}
+button{font-family:inherit;cursor:pointer;border:none}
+button:focus-visible,.theme-card:focus-visible,.card:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.hidden{display:none !important}
+
+/* ── 頂部跑馬燈（跟工作區其他工具共用同一份 Google Sheet 公告內容）。
+   topbar 是 position:sticky，跑馬燈顯示時把 body 往下推 26px（初始版面）＋
+   topbar 的 sticky top 也加 26px（捲動吸頂時仍留在跑馬燈下方），兩者缺一都會疊圖。 */
+#marqueeBar{
+  position:fixed;top:0;left:0;right:0;height:26px;z-index:60;
+  background:rgba(6,10,24,.94);border-bottom:1px solid rgba(254,249,236,.18);
+  overflow:hidden;display:none;align-items:center;
+}
+#marqueeBar.on{display:flex}
+#marqueeTrack{
+  display:inline-block;white-space:nowrap;padding-left:100%;
+  font-size:12px;font-weight:700;color:var(--amber);
+  animation:marquee-scroll 30s linear infinite;
+}
+@keyframes marquee-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+body.has-marquee{padding-top:26px}
+body.has-marquee .topbar{top:26px}
+
+/* ── 頂部星軌桌沿 ───────────────────────────── */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 18px;
+  background:linear-gradient(#5b6178,var(--wood) 40%,var(--wood-dark));
+  border-bottom:4px solid #24273a;
+  box-shadow:0 4px 14px rgba(0,0,0,.35);
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-tiles{display:flex;gap:3px}
+.logo-tiles span{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:32px;border-radius:5px;
+  font-weight:900;font-size:15px;color:#fff;
+  font-family:"Arial Black","Segoe UI",sans-serif;
+  box-shadow:0 2px 3px rgba(0,0,0,.35);
+}
+.logo-tiles span:nth-child(odd){transform:rotate(-4deg)}
+.logo-tiles span:nth-child(even){transform:rotate(3deg)}
+.logo-title{font-size:18px;font-weight:900;color:var(--cream);letter-spacing:1px}
+.logo-title small{display:block;font-size:11px;font-weight:400;color:#c9d6e8;letter-spacing:2px}
+.topbar-spacer{flex:1}
+.timer-chip{
+  display:flex;align-items:center;gap:10px;
+  background:var(--chip);border-radius:10px;padding:6px 14px;
+  border:1px solid #1d3a5a;box-shadow:inset 0 2px 6px rgba(0,0,0,.6);
+}
+.timer-chip .t-label{font-size:11px;color:#6f9dae}
+.timer-chip .t-value{font-family:Consolas,monospace;font-size:22px;font-weight:700;color:var(--led);min-width:74px;text-align:right}
+.timer-chip.paused .t-value{animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:.25}}
+.controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.ctl-btn{
+  padding:9px 18px;border-radius:10px;font-size:15px;font-weight:700;
+  color:var(--ink);background:var(--cream);white-space:nowrap;
+  box-shadow:0 3px 0 #c9b894,0 4px 8px rgba(0,0,0,.3);
+  transition:transform .08s,box-shadow .08s;
+}
+.ctl-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #c9b894,0 2px 4px rgba(0,0,0,.3)}
+.ctl-btn.primary{background:var(--amber);box-shadow:0 3px 0 var(--amber-dark),0 4px 8px rgba(0,0,0,.3)}
+.ctl-btn.primary:active{box-shadow:0 1px 0 var(--amber-dark),0 2px 4px rgba(0,0,0,.3)}
+.ctl-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+a.ctl-btn{display:inline-flex;align-items:center;text-decoration:none;cursor:pointer}
+
+/* ── 主要版面 ───────────────────────────── */
+main{max-width:1180px;margin:0 auto;padding:26px 18px 60px}
+.view-title{text-align:center;margin-bottom:6px;font-size:26px;font-weight:900;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.view-sub{text-align:center;color:#cfe0ea;font-size:14px;margin-bottom:24px}
+.view-sub b{color:var(--amber)}
+
+/* 主題選單 */
+.theme-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:22px}
+.theme-card{
+  width:200px;min-height:210px;border-radius:16px;overflow:hidden;
+  background:var(--cream);color:var(--ink);text-align:left;
+  box-shadow:var(--shadow-card);
+  display:flex;flex-direction:column;
+  transition:transform .15s,box-shadow .15s;
+  border:0;padding:0;
+}
+.theme-grid .theme-card:nth-child(odd){transform:rotate(-1.6deg)}
+.theme-grid .theme-card:nth-child(even){transform:rotate(1.4deg)}
+.theme-card:hover{transform:rotate(0) translateY(-6px);box-shadow:var(--shadow-lift)}
+.theme-card .tc-band{height:52px;display:flex;align-items:center;padding:0 14px;color:#fff;font-weight:900;font-size:16px;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.theme-card .tc-desc{flex:1;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--ink-soft)}
+.theme-card .tc-status{padding:10px 14px;border-top:1px dashed #d8c9ac;display:flex;align-items:center;justify-content:space-between;font-size:13px}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}
+.badge.todo{background:#eee3cc;color:#8a7452}
+.badge.score{background:var(--ok-soft);color:var(--ok)}
+.badge.score.partial{background:#fdf0d4;color:#b07c14}
+.tc-time{font-family:Consolas,monospace;color:#9b8668;font-size:12px}
+.tc-answer-link{background:none;border:none;color:#2f6a7d;font-size:12px;text-decoration:underline;padding:0}
+.menu-hint{margin-top:26px;text-align:center;color:#bcd3e3;font-size:13px}
+.install-row{margin-top:18px;text-align:center}
+.footnote{margin-top:14px;text-align:center;color:#8fabc2;font-size:12px;line-height:1.8}
+
+/* 挑戰版面 */
+.board-head{
+  display:flex;gap:16px;align-items:stretch;margin-bottom:22px;flex-wrap:wrap;
+}
+.topic-card{
+  flex:1;min-width:280px;background:var(--cream);color:var(--ink);
+  border-radius:16px;box-shadow:var(--shadow-card);overflow:hidden;
+}
+.topic-card .tp-band{padding:10px 16px;color:#fff;font-weight:900;font-size:17px;display:flex;align-items:center;gap:10px;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tp-band .tp-tag{font-size:11px;font-weight:400;background:rgba(255,255,255,.25);padding:2px 8px;border-radius:99px}
+.topic-card .tp-desc{padding:12px 16px;font-size:14px;line-height:1.7;color:var(--ink-soft)}
+.board-side{display:flex;flex-direction:column;gap:8px;justify-content:center}
+.board-side .attempt-chip{
+  background:var(--chip);border-radius:10px;padding:8px 14px;text-align:center;
+  border:1px solid #1d3a5a;box-shadow:inset 0 2px 6px rgba(0,0,0,.6);
+}
+.attempt-chip .t-label{font-size:11px;color:#6f9dae}
+.attempt-chip .t-value{font-family:Consolas,monospace;font-size:20px;color:var(--led)}
+.board-btns{display:flex;flex-direction:column;gap:8px}
+.board-btns .ctl-btn{font-size:14px;padding:8px 14px}
+
+/* 提示格（牌墊） */
+.slot-row{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px}
+.slot{
+  border:3px dashed rgba(254,249,236,.5);border-radius:14px;
+  min-height:170px;padding:10px;position:relative;
+  transition:background .12s,border-color .12s;
+}
+.slot .slot-letter{
+  position:absolute;right:10px;bottom:4px;
+  font-family:"Arial Black","Segoe UI",sans-serif;
+  font-size:56px;font-weight:900;color:rgba(254,249,236,.12);line-height:1;pointer-events:none;
+}
+.slot .slot-guide{font-size:12.5px;color:#dcecf5;margin-bottom:8px;line-height:1.5;pointer-events:none}
+.slot .slot-guide b{color:var(--amber);font-size:14px;margin-right:4px}
+.slot .slot-body{min-height:96px}
+.slot.drop-hover{background:rgba(254,249,236,.12);border-color:var(--amber)}
+.slot .slot-mark{
+  position:absolute;top:-12px;right:-8px;width:30px;height:30px;border-radius:50%;
+  display:none;align-items:center;justify-content:center;
+  color:#fff;font-weight:900;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+.slot.correct{border-style:solid;border-color:var(--ok);background:rgba(63,157,85,.18)}
+.slot.wrong{border-style:solid;border-color:var(--bad);background:rgba(217,83,79,.16)}
+.slot.correct .slot-mark{display:flex;background:var(--ok)}
+.slot.wrong .slot-mark{display:flex;background:var(--bad)}
+
+/* 手牌區 */
+.hand-zone{
+  border-radius:16px;padding:16px 16px 20px;
+  background:rgba(0,0,0,.22);
+  box-shadow:inset 0 3px 12px rgba(0,0,0,.35);
+}
+.hand-zone .hz-label{font-size:12px;color:#a8c8d8;letter-spacing:2px;margin-bottom:10px}
+.hand{display:flex;flex-wrap:wrap;gap:12px;min-height:110px;align-items:flex-start}
+.hand-empty-hint{color:#7fa8bf;font-size:13px;padding:8px 2px}
+
+/* 卡牌 */
+.card{
+  width:200px;background:var(--cream);color:var(--ink);
+  border-radius:10px;padding:10px 12px 12px;font-size:13px;line-height:1.55;
+  box-shadow:var(--shadow-card);
+  border-top:6px solid #999;
+  cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;
+  transition:transform .12s,box-shadow .12s;
+  position:relative;
+}
+.hand .card:nth-child(odd){transform:rotate(-1.2deg)}
+.hand .card:nth-child(even){transform:rotate(1.1deg)}
+.card:hover{transform:rotate(0) scale(1.02)}
+.card.dragging{
+  pointer-events:none;cursor:grabbing;z-index:999;
+  transform:rotate(2deg) scale(1.06);box-shadow:var(--shadow-lift);
+  transition:none;
+}
+.card.placed{width:100%;margin:0}
+.card .card-theme-tag{font-size:10px;color:#fff;border-radius:99px;padding:1px 8px;position:absolute;top:-15px;left:8px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.slot .card{animation:settle .18s ease-out}
+@keyframes settle{from{transform:scale(1.08)}to{transform:scale(1)}}
+.board.locked .card{cursor:default}
+
+.board-actions{display:flex;justify-content:center;gap:14px;margin-top:24px}
+.board-actions .ctl-btn{font-size:16px;padding:12px 30px}
+
+/* ── 覆蓋層（答案、結算、暫停、恭賀） ───────── */
+.overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(6,14,30,.72);backdrop-filter:blur(2px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.panel{
+  background:var(--cream);color:var(--ink);border-radius:18px;
+  max-width:720px;width:100%;max-height:88vh;overflow:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+  padding:26px 28px;
+}
+.panel h2{font-size:22px;font-weight:900;margin-bottom:4px}
+.panel .panel-sub{color:var(--ink-soft);font-size:13px;margin-bottom:18px}
+.panel-close-row{display:flex;justify-content:center;gap:12px;margin-top:22px;flex-wrap:wrap}
+
+/* 答案核對 */
+.answer-list{display:flex;flex-direction:column;gap:10px}
+.answer-item{border:1px solid #e2d5b8;border-radius:12px;padding:10px 14px;background:#fffdf7}
+.answer-item .ai-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ai-letter{
+  min-width:30px;height:30px;padding:0 7px;border-radius:8px;color:#fff;font-weight:900;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:"Arial Black","Segoe UI",sans-serif;font-size:14px;
+}
+.ai-name{font-weight:700;font-size:14px}
+.ai-result{margin-left:auto;font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px}
+.ai-result.ok{background:var(--ok-soft);color:var(--ok)}
+.ai-result.ng{background:var(--bad-soft);color:var(--bad)}
+.answer-item .ai-text{font-size:13px;line-height:1.6;color:var(--ink-soft)}
+.answer-score{text-align:center;font-size:16px;margin-bottom:14px}
+.answer-score b{font-size:26px;color:var(--amber-dark)}
+
+/* 結算 */
+.result-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.result-table th,.result-table td{padding:8px 10px;border-bottom:1px dashed #ddcfae;text-align:left}
+.result-table th{font-size:12px;color:#9b8668;font-weight:700}
+.result-table .rt-dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:8px;vertical-align:-1px}
+.result-table td.num{font-family:Consolas,monospace;text-align:right}
+.result-total{
+  display:flex;justify-content:space-around;background:#f6ecd6;border-radius:12px;padding:14px;margin-top:10px;text-align:center;
+}
+.result-total .rt-label{font-size:12px;color:#9b8668}
+.result-total .rt-value{font-size:30px;font-weight:900;color:var(--ink)}
+.result-total .rt-value.score-full{color:var(--amber-dark)}
+.score-entry{background:#fdf0d4;border-radius:12px;padding:14px 16px;margin-top:14px;text-align:center}
+.score-entry .se-hint{font-size:13px;color:var(--ink-soft);margin-bottom:10px}
+.score-entry .se-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.score-entry input{
+  font-family:inherit;font-size:14px;padding:9px 12px;border-radius:8px;
+  border:1px solid #d8c9ac;width:160px;max-width:60vw;
+}
+.share-row{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.lb-empty{text-align:center;color:var(--ink-soft);font-size:14px;padding:20px 0}
+.result-table .lb-rank{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:900;
+  background:#eee3cc;color:#8a7452;
+}
+.result-table .lb-rank.top1{background:#ffd76a;color:#8a5a06}
+.result-table .lb-rank.top2{background:#dbe2ea;color:#5c6672}
+.result-table .lb-rank.top3{background:#e6bd93;color:#7a4a1e}
+
+/* 暫停 */
+.pause-panel{text-align:center;background:transparent;box-shadow:none;color:var(--cream)}
+.pause-panel .pp-icon{font-size:70px;margin-bottom:10px}
+.pause-panel h2{color:var(--cream);font-size:28px;margin-bottom:8px}
+.pause-panel p{color:#bcd3e3;margin-bottom:22px;font-size:14px}
+
+/* 恭賀 */
+.congrats-panel{text-align:center}
+.congrats-panel .cg-emoji{font-size:64px;margin-bottom:8px}
+.congrats-panel h2{font-size:28px;color:var(--amber-dark)}
+.congrats-panel p{color:var(--ink-soft);margin-top:8px;font-size:15px;line-height:1.7}
+
+/* 彩帶 */
+.confetti-piece{
+  position:fixed;top:-20px;width:10px;height:16px;z-index:200;pointer-events:none;
+  animation:fall linear forwards;
+}
+@keyframes fall{
+  to{transform:translateY(105vh) rotate(720deg);opacity:.9}
+}
+
+/* toast */
+#toast{
+  position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);
+  background:#1e1830;color:var(--cream);padding:10px 22px;border-radius:99px;
+  font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.4);
+  opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:300;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* RWD */
+@media (max-width:900px){
+  .slot-row{grid-template-columns:repeat(3,1fr)}
+  .card{width:170px}
+}
+@media (max-width:620px){
+  .slot-row{grid-template-columns:repeat(2,1fr)}
+  .theme-card{width:calc(50% - 12px)}
+  .card{width:calc(50% - 8px)}
+  .logo-title small{display:none}
+  .timer-chip .t-value{font-size:17px;min-width:58px}
+  .ctl-btn{padding:8px 12px;font-size:13px}
+  .panel{padding:20px 18px}
+  .panel-close-row .ctl-btn{flex:1 1 auto;text-align:center}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+
+<div id="marqueeBar"><div id="marqueeTrack"></div></div>
+
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-tiles" id="logoTiles" aria-hidden="true"></div>
+    <div class="logo-title">CO-STAR 卡牌配對<small>PROMPT PRACTICE TABLE</small></div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="timer-chip" id="timerChip">
+    <span class="t-label">總時間</span>
+    <span class="t-value" id="totalTimer">00:00</span>
+  </div>
+  <div class="controls">
+    <button class="ctl-btn primary" id="btnStart">▶ 開始</button>
+    <button class="ctl-btn" id="btnPause" disabled>⏸ 暫停</button>
+    <button class="ctl-btn" id="btnFinish" disabled>🏁 完成</button>
+    <button class="ctl-btn" id="btnLeaderboard">🏆 排行榜</button>
+    <a class="ctl-btn" href="manual.html" target="_blank" rel="noopener">📖 操作手冊</a>
+  </div>
+</header>
+
+<main>
+  <!-- 主題選單 -->
+  <section id="menuView">
+    <h1 class="view-title">選一個主題，開始配對！</h1>
+    <p class="view-sub">每個主題有 <b>6 張卡牌</b>，把它們拖進正確的 CO-STAR 提示格。全部答對可拿下 <b>20 分</b>／主題（5 主題滿分 <b>100 分</b>）。</p>
+    <div class="theme-grid" id="themeGrid"></div>
+    <p class="menu-hint">主題不分先後順序，可隨時重新挑戰；分數以最近一次結果為準。全部完成後按上方「🏁 完成」看總結算。</p>
+    <div class="install-row">
+      <button class="ctl-btn" id="installBtn">📲 加入主畫面</button>
+    </div>
+    <p class="footnote">⚠ 本工具僅供個人娛樂與教學示範使用，禁止未經授權公開發布、販售或商業化使用。<br>創作者：蔡豐全（Mark Tsai）<br><img src="https://visitor-badge.laobi.icu/badge?page_id=m255525.costargame" alt="訪客次數" style="vertical-align:middle;height:20px;margin-top:6px;"></p>
+  </section>
+
+  <!-- 單一主題挑戰 -->
+  <section id="boardView" class="hidden">
+    <div class="board" id="board">
+      <div class="board-head">
+        <div class="topic-card" id="topicCard">
+          <div class="tp-band" id="topicBand"><span class="tp-tag">主題描述卡</span><span id="topicTitle"></span></div>
+          <div class="tp-desc" id="topicDesc"></div>
+        </div>
+        <div class="board-side">
+          <div class="attempt-chip">
+            <div class="t-label">本題時間</div>
+            <div class="t-value" id="attemptTimer">00:00</div>
+          </div>
+          <div class="board-btns">
+            <button class="ctl-btn" id="btnBackMenu">← 返回選單</button>
+          </div>
+        </div>
+      </div>
+      <div class="slot-row" id="slotRow"></div>
+      <div class="hand-zone">
+        <div class="hz-label">手牌區 — 將卡牌拖入上方提示格</div>
+        <div class="hand" id="hand"></div>
+      </div>
+      <div class="board-actions">
+        <button class="ctl-btn primary" id="btnConfirm" disabled>✔ 確認</button>
+        <button class="ctl-btn" id="btnRestartTheme">↻ 重新開始</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 答案核對 -->
+<div class="overlay hidden" id="answerOverlay">
+  <div class="panel">
+    <h2 id="answerTitle">正確答案</h2>
+    <p class="panel-sub">核對每一格的正確卡牌，看看 CO-STAR 的分類邏輯。</p>
+    <div class="answer-score" id="answerScore"></div>
+    <div class="answer-list" id="answerList"></div>
+    <div class="panel-close-row">
+      <button class="ctl-btn primary" id="btnCloseAnswer">關閉，返回主題選單</button>
+    </div>
+  </div>
+</div>
+
+<!-- 結算 -->
+<div class="overlay hidden" id="resultOverlay">
+  <div class="panel">
+    <h2>🏁 遊戲結算</h2>
+    <p class="panel-sub">本局各主題成績與總時間回顧。</p>
+    <table class="result-table">
+      <thead><tr><th>主題</th><th style="text-align:right">分數</th><th style="text-align:right">用時</th></tr></thead>
+      <tbody id="resultRows"></tbody>
+    </table>
+    <div class="result-total">
+      <div><div class="rt-label">總分</div><div class="rt-value" id="resultTotal">0</div></div>
+      <div><div class="rt-label">總時間</div><div class="rt-value" id="resultTime">00:00</div></div>
+    </div>
+    <div class="score-entry hidden" id="scoreEntry">
+      <p class="se-hint">🏆 恭喜擠進排行榜前 10 名！輸入暱稱記錄成績：</p>
+      <div class="se-row">
+        <input type="text" id="lbNameInput" maxlength="10" placeholder="訪客">
+        <button class="ctl-btn primary" id="btnSaveScore">🏆 記錄成績</button>
+      </div>
+    </div>
+    <div class="share-row">
+      <button class="ctl-btn" id="btnDownloadResult">💾 下載成績圖</button>
+      <button class="ctl-btn hidden" id="btnShareResult">📤 分享成績</button>
+    </div>
+    <div class="panel-close-row">
+      <button class="ctl-btn" id="btnResumeGame">← 繼續挑戰</button>
+      <button class="ctl-btn" id="btnShowLeaderboard">🏆 排行榜</button>
+      <button class="ctl-btn primary" id="btnNewGame">🔄 再玩一局（重抽主題）</button>
+    </div>
+  </div>
+</div>
+
+<!-- 排行榜 -->
+<div class="overlay hidden" id="leaderboardOverlay">
+  <div class="panel">
+    <h2>🏆 排行榜（前 10 名）</h2>
+    <p class="panel-sub">依總分高低排序，同分以總時間較短者優先；僅記錄在這台裝置、這個瀏覽器上。</p>
+    <table class="result-table" id="lbTable">
+      <thead><tr><th>#</th><th>暱稱</th><th style="text-align:right">分數</th><th style="text-align:right">總時間</th><th style="text-align:right">日期</th></tr></thead>
+      <tbody id="lbRows"></tbody>
+    </table>
+    <p class="lb-empty hidden" id="lbEmpty">還沒有紀錄，完成一局遊戲並拿下前 10 名成績試試看！</p>
+    <div class="panel-close-row">
+      <button class="ctl-btn primary" id="btnCloseLeaderboard">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 恭賀 -->
+<div class="overlay hidden" id="congratsOverlay">
+  <div class="panel congrats-panel">
+    <div class="cg-emoji">🎉🌟🎉</div>
+    <h2>太厲害了，全部答對！</h2>
+    <p>30 張卡牌全數歸位，拿下滿分 100 分！<br>你已經抓到 CO-STAR 提示詞框架的精髓了。</p>
+    <div class="panel-close-row">
+      <button class="ctl-btn primary" id="btnCloseCongrats">收下掌聲</button>
+    </div>
+  </div>
+</div>
+
+<!-- 暫停 -->
+<div class="overlay hidden" id="pauseOverlay">
+  <div class="pause-panel panel">
+    <div class="pp-icon">⏸</div>
+    <h2>遊戲暫停中</h2>
+    <p>計時已停止，卡牌暫時鎖定。</p>
+    <button class="ctl-btn primary" id="btnResume">▶ 繼續遊戲</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ══════════ 資料 ══════════ */
+const SLOTS = [
+  {key:'C', zh:'背景', guide:'請放入「背景」'},
+  {key:'O', zh:'目標', guide:'請放入「目標」'},
+  {key:'S', zh:'風格', guide:'請放入「風格」'},
+  {key:'T', zh:'語氣', guide:'請放入「語氣」'},
+  {key:'A', zh:'受眾', guide:'請放入「受眾」'},
+  {key:'R', zh:'輸出格式', guide:'請放入「輸出格式」'},
+];
+const THEME_COLORS = [
+  {name:'星塵粉', main:'#e8618f'},
+  {name:'極光綠', main:'#3ec9a7'},
+  {name:'曙光橙', main:'#f2994a'},
+  {name:'深空藍', main:'#4a7fd6'},
+  {name:'銀河紫', main:'#9b6bd6'},
+];
+const QUESTION_BANK = [
+  {id:'cafe-opening', title:'社區咖啡館的開幕貼文',
+   desc:'「拾光咖啡」在巷口開幕，主理人想發一則貼文邀請鄰居來坐坐。',
+   cards:{C:'店面由老屋改建，主理人辭掉工程師工作圓夢開店，鄰里多是熟識的老住戶',
+          O:'寫一則開幕貼文，讓路過的鄰居願意進來喝一杯、留下第一印象',
+          S:'用短句分段，穿插一兩句店主的心情自白，不寫成制式公告',
+          T:'溫暖、帶點靦腆的興奮感，像是跟老鄰居分享喜訊',
+          A:'常在附近散步、還沒進來過的社區住戶，多半四五十歲以上',
+          R:'一則 120 字以內的貼文，結尾附上營業時間與地址'}},
+  {id:'bakery-preorder', title:'麵包店的母親節預購公告',
+   desc:'「麥田手作」烘焙坊母親節將推出限量戚風蛋糕，需開放預購。',
+   cards:{C:'蛋糕當日現做、數量有限，去年母親節開賣半小時就完售，客人常抱怨搶不到',
+          O:'讓看到公告的人立刻想動手預約，並清楚知道怎麼下單',
+          S:'條列式重點（品項、價格、取貨方式），不寫成長篇散文',
+          T:'誠懇又帶點急迫感，但不過度催促',
+          A:'追蹤該店 IG 的舊客與想幫媽媽準備驚喜的子女',
+          R:'一則貼文，含三個條列重點與一句明確的下單方式說明'}},
+  {id:'florist-condolence', title:'花店的奠儀花籃留言卡',
+   desc:'花店客人臨時要訂一個奠儀花籃，請店員代寫附卡留言。',
+   cards:{C:'客人與往生者是多年生意夥伴，關係不算太親近但敬重對方，喪家是傳統家庭',
+          O:'寫出一句得體的留言，讓客人簽名後就能直接使用',
+          S:'短句、用詞正式，不加多餘形容詞',
+          T:'莊重、節制，不流於煽情',
+          A:'收到花籃的喪家，會在告別式現場看到卡片',
+          R:'一句 20 字以內的留言文字，另加一句署名建議'}},
+  {id:'dance-studio-recruit', title:'街舞教室的招生文案',
+   desc:'「Beat Lab」舞蹈教室新開一班給零基礎大人的街舞課，要在社群徵人。',
+   cards:{C:'多數詢問者是上班族，怕自己「肢體僵硬跟不上」，教室過去學員從完全不會跳到能上台',
+          O:'打消猶豫者的顧慮，讓他們願意來上一堂體驗課',
+          S:'短段落＋一句強而有力的開頭金句，避免長篇說教',
+          T:'有活力、鼓舞人心，但不誇張浮誇',
+          A:'25 到 40 歲、想運動又怕尷尬的上班族',
+          R:'一則貼文，開頭一句金句、中間三行說明，結尾附體驗課資訊'}},
+  {id:'tutoring-parent-update', title:'補習班給家長的月報訊息',
+   desc:'國中數學班要發訊息跟家長說明這個月孩子的學習狀況。',
+   cards:{C:'這位學生本月小考進步明顯，但上課偶爾分心，家長平常工作忙較少主動聯繫',
+          O:'讓家長感受到孩子有被關注，同時溫和提醒需要加強專注力',
+          S:'先講進步再帶出建議，避免變成單純的「檢討信」',
+          T:'肯定、真誠，帶一點鼓勵',
+          A:'平常較少到班上、透過 LINE 聯繫的家長',
+          R:'一則 150 字以內的訊息，結尾附一個具體的在家練習建議'}},
+  {id:'vet-clinic-reminder', title:'動物醫院的疫苗提醒訊息',
+   desc:'貓咪「阿橘」該打年度疫苗了，動物醫院要發訊息提醒飼主預約。',
+   cards:{C:'阿橘上次來院時有點緊張、不太親人，飼主平常對打針這件事比較猶豫',
+          O:'讓飼主願意盡快安排回診施打疫苗',
+          S:'簡短直接，先講重點再補充說明，不寫成衛教長文',
+          T:'親切、專業，帶一點安撫緊張飼主的耐心',
+          A:'對打針有疑慮、平常較少主動回診的飼主',
+          R:'一則 80 字以內的訊息，附上可預約的兩個時段'}},
+  {id:'coworking-space-ad', title:'共享辦公室的招租貼文',
+   desc:'「起點共享辦公室」有兩個獨立小房間釋出，要在社群平台招募新租客。',
+   cards:{C:'空間鄰近捷運站，過去入駐者多是接案工作者與兩人小團隊，租約最短三個月',
+          O:'吸引正在找辦公空間的自由工作者主動來預約參觀',
+          S:'條列空間亮點，搭配一句描繪「進駐後生活感」的開場',
+          T:'專業但不生硬，帶一點社群感',
+          A:'在家工作久了想找共同工作空間的自由接案者',
+          R:'一則貼文，開場一句話＋三項空間亮點條列＋預約參觀連結說明'}},
+  {id:'bike-shop-service', title:'腳踏車行的保養提醒明信片',
+   desc:'「鐵馬行」腳踏車行要寄一張明信片提醒老客戶該做年度保養。',
+   cards:{C:'這位客人平常通勤騎車，去年這個時候曾抱怨煞車異音沒有及早處理',
+          O:'讓客人想起該回店裡檢查，而不是等出問題才來',
+          S:'用一兩句生活化的比喻帶出保養的重要性，避免說教',
+          T:'輕鬆、像老朋友聊天，不用專業術語嚇人',
+          A:'平常靠這台車通勤、不太懂機械保養的一般客人',
+          R:'一張明信片文案，不超過六十字，附上到店可享的小優惠說明'}},
+  {id:'dessert-shop-newitem', title:'甜點店的新品上市文案',
+   desc:'「甜光」甜點店冬季推出「烤布蕾泡芙」，要寫社群貼文與菜單描述。',
+   cards:{C:'這款泡芙外皮酥脆、內餡是招牌烤布蕾醬，比一般泡芙貴十五元，走小奢華路線',
+          O:'讓看到貼文的人想立刻找時間來買一份嚐鮮',
+          S:'用感官描寫帶出口感與味道，搭配一句吸睛的品名故事',
+          T:'甜美、有畫面感，帶點療癒氛圍',
+          A:'喜歡在社群上分享美食照的年輕女性客群',
+          R:'一則貼文＋一段四十字以內的菜單簡介'}},
+  {id:'photo-studio-inquiry', title:'攝影工作室的婚紗詢問回覆',
+   desc:'一對新人詢問婚紗攝影方案，攝影師要回覆說明適合的方案與注意事項。',
+   cards:{C:'這對新人預算有限但很在意自然不做作的風格，工作室檔期在婚期前只剩兩個月',
+          O:'讓新人清楚了解可行方案，並願意進一步約時間面談',
+          S:'先回應需求再提方案，用條列列出方案內容，避免一次塞太多資訊',
+          T:'親切、專業，讓人感覺被理解而不是被推銷',
+          A:'第一次找婚紗攝影、對流程不熟悉的準新人',
+          R:'一封回覆訊息，含兩個方案條列與一句邀約面談的話'}},
+  {id:'museum-guide-script', title:'地方文物館的導覽開場詞',
+   desc:'社區文物館要給志工導覽員一段開場詞，帶團體參觀老街文物展。',
+   cards:{C:'來訪者多是鄰近國小校外教學的學生，展品是老街早期的生活器具',
+          O:'在三十秒內抓住孩子的注意力，讓他們願意跟著往下聽',
+          S:'用提問開場帶出好奇心，避免一開始就丟年代與名詞',
+          T:'活潑、帶點說故事的懸念感',
+          A:'國小中年級學生，注意力容易分散',
+          R:'一段 100 字以內的開場詞，結尾自然帶到第一件展品'}},
+  {id:'hair-salon-promo', title:'髮廊的淡季喚客訊息',
+   desc:'髮廊淡季想推出「洗剪護」優惠，發訊息給沉睡許久的舊客戶。',
+   cards:{C:'這批客人多半半年以上沒回店，過去反應是「忘記回診時間」而非不滿意',
+          O:'喚醒舊客戶的回訪意願，而不是讓人覺得在推銷',
+          S:'用一句關心近況的開場，再帶出優惠內容',
+          T:'熟悉、像老朋友聯繫，不生硬',
+          A:'半年以上沒回店消費的舊客戶',
+          R:'一則 70 字以內的訊息，附上優惠內容與有效期限'}},
+  {id:'driving-school-ad', title:'駕訓班的招生貼文',
+   desc:'駕訓班鎖定「總是很緊張的新手」，想推出一則吸引這群人報名的貼文。',
+   cards:{C:'過去學員最常反應「教練太兇」，這間駕訓班主打耐心教學與小班制',
+          O:'讓怕開車、猶豫很久的人放下顧慮，願意來電詢問',
+          S:'用一句貼近心聲的開場白，破解「學開車很可怕」的既定印象',
+          T:'溫和、有同理心，不強調速成',
+          A:'對開車有恐懼感、拖延很久沒去考照的成年人',
+          R:'一則貼文，含一句同理開場與三項教學特色條列'}},
+  {id:'moving-company-quote', title:'搬家公司的報價說明訊息',
+   desc:'客人詢問搬家報價，搬家公司客服要回覆說明費用組成與注意事項。',
+   cards:{C:'客人是套房搬到套房，物品不多但有一台鋼琴，客人擔心搬運過程刮傷',
+          O:'讓客人清楚報價包含什麼，並放心把鋼琴託付給這家公司',
+          S:'先講重點金額再說明細項，避免條列過多雜項嚇跑客人',
+          T:'專業、讓人放心，主動點出客人在意的鋼琴問題',
+          A:'第一次找搬家公司、擔心貴重物品受損的客人',
+          R:'一則回覆訊息，含報價區間、鋼琴處理說明與下一步確認方式'}},
+  {id:'cleaning-service-apology', title:'清潔公司服務疏失的道歉訊息',
+   desc:'到府清潔服務漏掃了客人交代的陽台，客人反應後客服要回覆處理。',
+   cards:{C:'這位客人是第一次使用該服務，原本體驗不錯，唯獨陽台被遺漏，客人語氣不算生氣但明顯失望',
+          O:'讓客人感覺被重視，並願意接受補救方案而非要求退費',
+          S:'先承認疏失再提解法，不找藉口也不過度道歉',
+          T:'誠懇、負責，語氣冷靜不慌張',
+          A:'第一次使用服務、對品質仍在觀察的新客人',
+          R:'一則回覆訊息，含補救方案與一句挽留客人的話，全文不超過 150 字'}},
+  {id:'board-game-cafe-event', title:'桌遊店的新手友善活動宣傳',
+   desc:'桌遊咖啡廳週末要辦新手友善的桌遊體驗夜，需要發文招募參加者。',
+   cards:{C:'過去參加者常擔心「都不會玩會很尷尬」，活動有店員帶新手入門',
+          O:'讓猶豫要不要來的人放心報名，湊滿當晚場次',
+          S:'用輕鬆口吻列出活動亮點，避免寫成正式活動公告',
+          T:'俏皮、有趣，帶一點邀約感',
+          A:'想找新朋友、但擔心自己不會玩桌遊的社會新鮮人',
+          R:'一則貼文，含活動時間地點與一句消除疑慮的保證'}},
+  {id:'farmers-market-vendor', title:'小農市集攤位的自我介紹卡',
+   desc:'有機小農第一次擺攤參加週末市集，要準備一張攤位自我介紹卡。',
+   cards:{C:'農場位在山區，堅持不用農藥但產量不穩定，攤主是返鄉青農，過去沒做過行銷',
+          O:'讓路過攤位的人願意停下腳步聽介紹、進而購買',
+          S:'用第一人稱說故事，帶出返鄉種田的動機',
+          T:'真誠、樸實，不誇大功效',
+          A:'逛市集、注重食安與在地小農故事的消費者',
+          R:'一張手寫風格自我介紹卡文案，不超過 100 字'}},
+  {id:'escape-room-booking', title:'密室逃脫店的訂位確認訊息',
+   desc:'客人訂了六人團體場次，店員要回覆確認並提醒注意事項。',
+   cards:{C:'這場是難度較高的主題，過去有團體因為人數不足或遲到影響體驗，客人是第一次上門',
+          O:'讓客人記住到場時間與人數規則，避免當天出狀況',
+          S:'條列重點提醒，開頭先表達期待見面',
+          T:'期待、貼心，不是制式罐頭訊息',
+          A:'第一次訂密室逃脫、對流程不熟悉的團體召集人',
+          R:'一則確認訊息，含時間地點與三項注意事項條列'}},
+  {id:'freelancer-portfolio-bio', title:'接案設計師的作品集自我介紹',
+   desc:'一位接案平面設計師要更新個人作品集網站的「關於我」自我介紹段落。',
+   cards:{C:'過去五年主要接餐飲品牌識別設計案，客戶常說她「懂老闆想講但講不出來的感覺」',
+          O:'讓瀏覽作品集的潛在客戶願意進一步聯繫洽談合作',
+          S:'用具體案例帶出風格，避免寫成空泛的形容詞堆疊',
+          T:'自信、專業，帶一點個人特色而非制式履歷語氣',
+          A:'正在物色設計師、瀏覽作品集做初步篩選的品牌業主',
+          R:'一段 150 字以內的自我介紹，結尾附一句邀請合作的話'}},
+  {id:'gym-referral-announcement', title:'健身房會員推薦好友公告',
+   desc:'健身房要推出「會員推薦好友」優惠方案，需發訊息通知現有會員。',
+   cards:{C:'過去會員常私下帶朋友來體驗但沒有正式優惠，健身房想把這個行為變成正式方案',
+          O:'鼓勵現有會員主動邀請朋友加入，提升雙方參與感',
+          S:'條列說明雙方各自能得到的好處，開頭一句話點出「順手做的事現在有回饋」',
+          T:'熱情、感謝會員一路以來的支持',
+          A:'已經是會員、平常會帶朋友來運動的老客戶',
+          R:'一則貼文，含雙方優惠條列與一句行動呼籲'}},
+];
+
+/* ══════════ 狀態 ══════════ */
+const STORAGE_KEY = 'costarGameState';
+const LB_STORAGE_KEY = 'costarGameLeaderboard';
+const LB_MAX = 10;
+let S = null;            // {drawn:[id x5], results:{id:{score,timeMs,allCorrect}}, totalMs, started, finished, lbRecorded}
+let currentThemeId = null;
+let attemptMs = 0;       // 本題本次嘗試累計時間
+let boardLocked = false; // 確認後鎖定
+let running = false;     // 計時中
+let lastTick = 0;
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+function newGameState(){
+  return {
+    drawn: shuffle(QUESTION_BANK).map(t=>t.id).slice(0,5),
+    results:{}, totalMs:0, started:false, finished:false, lbRecorded:false,
+  };
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); }catch(e){}
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    if(!s || !Array.isArray(s.drawn) || s.drawn.length!==5) return null;
+    if(!s.drawn.every(id=>QUESTION_BANK.some(t=>t.id===id))) return null;
+    return s;
+  }catch(e){ return null; }
+}
+
+/* ══════════ 排行榜（本機前 10 名） ══════════ */
+function loadLeaderboard(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(LB_STORAGE_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  }catch(e){ return []; }
+}
+function saveLeaderboard(list){
+  try{ localStorage.setItem(LB_STORAGE_KEY, JSON.stringify(list)); }catch(e){}
+}
+function lbQualifies(score, timeMs){
+  const list = loadLeaderboard();
+  if(list.length < LB_MAX) return true;
+  const last = list[list.length-1];
+  return score > last.score || (score === last.score && timeMs < last.timeMs);
+}
+function lbAddEntry(name, score, timeMs){
+  const list = loadLeaderboard();
+  list.push({name: name || '訪客', score, timeMs, date: new Date().toLocaleDateString('zh-TW')});
+  list.sort((a,b)=> b.score - a.score || a.timeMs - b.timeMs);
+  list.length = Math.min(list.length, LB_MAX);
+  saveLeaderboard(list);
+  return list;
+}
+function renderLeaderboard(){
+  const list = loadLeaderboard();
+  const rows = document.getElementById('lbRows');
+  rows.innerHTML = '';
+  document.getElementById('lbEmpty').classList.toggle('hidden', list.length>0);
+  list.forEach((e, i)=>{
+    const rankCls = i===0?'top1':i===1?'top2':i===2?'top3':'';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="lb-rank ${rankCls}">${i+1}</span></td>
+      <td>${escapeHtml(e.name)}</td>
+      <td class="num">${e.score} 分</td>
+      <td class="num">${fmtTime(e.timeMs)}</td>
+      <td class="num">${escapeHtml(e.date||'')}</td>`;
+    rows.appendChild(tr);
+  });
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function openLeaderboard(){
+  renderLeaderboard();
+  document.getElementById('leaderboardOverlay').classList.remove('hidden');
+}
+document.getElementById('btnLeaderboard').addEventListener('click', openLeaderboard);
+document.getElementById('btnShowLeaderboard').addEventListener('click', openLeaderboard);
+document.getElementById('btnCloseLeaderboard').addEventListener('click', ()=>{
+  document.getElementById('leaderboardOverlay').classList.add('hidden');
+});
+function themeById(id){ return QUESTION_BANK.find(t=>t.id===id); }
+function themeColor(id){ return THEME_COLORS[S.drawn.indexOf(id)] || THEME_COLORS[0]; }
+function fmtTime(ms){
+  const s = Math.floor(ms/1000);
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+
+/* ══════════ 音效（WebAudio 合成，零音檔） ══════════ */
+let audioCtx = null;
+function ac(){
+  if(!audioCtx){
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if(!Ctor) return null;
+    audioCtx = new Ctor();
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+function tone(freq, delay, dur, type, vol){
+  const ctx = ac(); if(!ctx) return;
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  g.gain.setValueAtTime(vol||0.12, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0+dur);
+  osc.connect(g); g.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.05);
+}
+const sfx = {
+  place(){ tone(520,0,.07,'triangle',.10); },
+  good(i){ tone(880,0,.12,'sine',.13); tone(1318,.09,.18,'sine',.11); },
+  bad(){ tone(196,0,.22,'sawtooth',.09); tone(147,.1,.25,'sawtooth',.08); },
+  perfect(){ [523,659,784,1047].forEach((f,i)=>tone(f,i*.12,.22,'triangle',.13)); },
+  fanfare(){
+    const seq=[[523,0],[659,.15],[784,.3],[1047,.45],[784,.65],[1047,.8],[1319,1.0],[1047,1.35],[1319,1.5],[1568,1.7]];
+    seq.forEach(([f,d])=>tone(f,d,.3,'triangle',.13));
+    [262,330,392].forEach(f=>tone(f,1.7,.8,'sine',.06));
+  },
+};
+
+/* ══════════ toast ══════════ */
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+/* ══════════ 計時引擎 ══════════ */
+setInterval(()=>{
+  if(!running) return;
+  const now = performance.now();
+  const dt = now - lastTick;
+  lastTick = now;
+  S.totalMs += dt;
+  if(currentThemeId && !boardLocked) attemptMs += dt;
+  renderTimers();
+}, 200);
+function renderTimers(){
+  document.getElementById('totalTimer').textContent = fmtTime(S.totalMs);
+  document.getElementById('attemptTimer').textContent = fmtTime(attemptMs);
+}
+
+/* ══════════ 全域控制：開始／暫停／完成 ══════════ */
+const btnStart = document.getElementById('btnStart');
+const btnPause = document.getElementById('btnPause');
+const btnFinish = document.getElementById('btnFinish');
+
+function updateControls(){
+  btnStart.disabled = running || S.finished;
+  btnPause.disabled = !running;
+  btnFinish.disabled = !S.started || S.finished;
+  document.getElementById('timerChip').classList.toggle('paused', S.started && !running && !S.finished);
+}
+btnStart.addEventListener('click', ()=>{
+  ac(); // 解鎖音訊
+  if(S.finished){ return; }
+  S.started = true;
+  running = true;
+  lastTick = performance.now();
+  document.getElementById('pauseOverlay').classList.add('hidden');
+  updateControls(); saveState();
+  toast('計時開始，選一個主題挑戰吧！');
+});
+btnPause.addEventListener('click', ()=>{
+  running = false;
+  document.getElementById('pauseOverlay').classList.remove('hidden');
+  updateControls(); saveState();
+});
+document.getElementById('btnResume').addEventListener('click', ()=>btnStart.click());
+btnFinish.addEventListener('click', ()=>{
+  running = false;
+  S.finished = true;
+  updateControls(); saveState();
+  showResult();
+});
+
+/* ══════════ 主題選單 ══════════ */
+function renderMenu(){
+  const grid = document.getElementById('themeGrid');
+  grid.innerHTML = '';
+  S.drawn.forEach((id, idx)=>{
+    const t = themeById(id);
+    const col = THEME_COLORS[idx];
+    const res = S.results[id];
+    const card = document.createElement('button');
+    card.className = 'theme-card';
+    card.setAttribute('aria-label', t.title);
+    let statusHtml;
+    if(res){
+      const cls = res.allCorrect ? 'score' : 'score partial';
+      statusHtml = `<span class="badge ${cls}">${res.score} 分</span><span class="tc-time">⏱ ${fmtTime(res.timeMs)}</span>`;
+    }else{
+      statusHtml = `<span class="badge todo">未挑戰</span><span class="tc-time"></span>`;
+    }
+    card.innerHTML = `
+      <div class="tc-band" style="background:${col.main}">${t.title}</div>
+      <div class="tc-desc">${t.desc}</div>
+      <div class="tc-status">${statusHtml}</div>`;
+    card.addEventListener('click', ()=>{
+      if(!S.started){ toast('請先按右上角「▶ 開始」鍵開始計時'); return; }
+      if(!running){ toast('遊戲暫停中，請先按「▶ 開始」恢復'); return; }
+      if(S.finished){ toast('遊戲已結算，按「再玩一局」重新開始'); return; }
+      enterTheme(id);
+    });
+    grid.appendChild(card);
+  });
+}
+
+/* ══════════ 挑戰版面 ══════════ */
+const boardEl = document.getElementById('board');
+const slotRow = document.getElementById('slotRow');
+const handEl = document.getElementById('hand');
+const btnConfirm = document.getElementById('btnConfirm');
+
+function enterTheme(id){
+  currentThemeId = id;
+  attemptMs = 0;
+  boardLocked = false;
+  const t = themeById(id);
+  const col = themeColor(id);
+  document.getElementById('topicBand').style.background = col.main;
+  document.getElementById('topicTitle').textContent = t.title;
+  document.getElementById('topicDesc').textContent = t.desc;
+  boardEl.classList.remove('locked');
+
+  // 提示格
+  slotRow.innerHTML = '';
+  SLOTS.forEach(s=>{
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.dataset.key = s.key;
+    slot.innerHTML = `
+      <div class="slot-guide"><b>${s.key}</b>${s.guide}</div>
+      <div class="slot-body"></div>
+      <div class="slot-letter">${s.key}</div>
+      <div class="slot-mark"></div>`;
+    slotRow.appendChild(slot);
+  });
+
+  // 手牌（洗亂）
+  handEl.innerHTML = '';
+  shuffle(SLOTS.map(s=>s.key)).forEach(key=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.slot = key;
+    card.style.borderTopColor = col.main;
+    card.textContent = t.cards[key];
+    makeDraggable(card);
+    handEl.appendChild(card);
+  });
+
+  updateConfirm();
+  document.getElementById('menuView').classList.add('hidden');
+  document.getElementById('boardView').classList.remove('hidden');
+  renderTimers();
+}
+function backToMenu(){
+  currentThemeId = null;
+  document.getElementById('boardView').classList.add('hidden');
+  document.getElementById('menuView').classList.remove('hidden');
+  renderMenu();
+}
+document.getElementById('btnBackMenu').addEventListener('click', backToMenu);
+document.getElementById('btnRestartTheme').addEventListener('click', ()=>{
+  if(currentThemeId) enterTheme(currentThemeId); // 重進即重置卡牌與本題計時
+});
+
+function updateConfirm(){
+  const allPlaced = handEl.querySelectorAll('.card').length === 0;
+  btnConfirm.disabled = !allPlaced || boardLocked;
+}
+
+/* ══════════ 拖曳（Pointer Events，支援滑鼠與觸控） ══════════ */
+let drag = null;
+// 手機上偶爾會有 pointerup/pointercancel 沒送達的情形（例如系統手勢搶走觸控），
+// 導致 drag 卡在非 null 永久鎖死後續拖曳；這裡統一收斂成一個可重複呼叫的還原函式，
+// 讓下一次 pointerdown／頁面失焦都能自我修復，不會整局卡死。
+function forceCancelDrag(){
+  if(!drag) return;
+  const {card, pointerId} = drag;
+  try{ card.releasePointerCapture(pointerId); }catch(err){}
+  card.classList.remove('dragging');
+  card.style.position = card.style.left = card.style.top = card.style.width = '';
+  handEl.appendChild(card);
+  slotRow.querySelectorAll('.slot').forEach(s=>s.classList.remove('drop-hover'));
+  drag = null;
+  updateHandHint();
+  updateConfirm();
+}
+function makeDraggable(card){
+  card.addEventListener('pointerdown', (e)=>{
+    if(boardLocked || !running) return;
+    if(drag) forceCancelDrag(); // 自我修復：若上一次拖曳因觸控事件遺失而卡住，這裡先歸位再開始新的拖曳
+    e.preventDefault();
+    const rect = card.getBoundingClientRect();
+    drag = {
+      card,
+      dx: e.clientX - rect.left,
+      dy: e.clientY - rect.top,
+      from: card.parentElement,
+      pointerId: e.pointerId,
+    };
+    try{ card.setPointerCapture(e.pointerId); }catch(err){}
+    card.classList.add('dragging');
+    card.classList.remove('placed');
+    card.style.width = rect.width + 'px';
+    card.style.position = 'fixed';
+    card.style.left = rect.left + 'px';
+    card.style.top = rect.top + 'px';
+    document.body.appendChild(card);
+  });
+}
+// 頁面被系統手勢切走／切到背景時，觸控序列常常不會補送 pointerup/pointercancel，
+// 這裡當作安全閥，回到前景時牌已經自動歸位，不會維持卡住的視覺狀態。
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) forceCancelDrag(); });
+window.addEventListener('blur', forceCancelDrag);
+document.addEventListener('pointermove', (e)=>{
+  if(!drag || e.pointerId !== drag.pointerId) return;
+  drag.card.style.left = (e.clientX - drag.dx) + 'px';
+  drag.card.style.top = (e.clientY - drag.dy) + 'px';
+  const slot = slotUnderPoint(e.clientX, e.clientY);
+  slotRow.querySelectorAll('.slot').forEach(s=>s.classList.toggle('drop-hover', s===slot));
+});
+document.addEventListener('pointerup', (e)=>{
+  if(!drag || e.pointerId !== drag.pointerId) return;
+  const {card, from, pointerId} = drag;
+  try{ card.releasePointerCapture(pointerId); }catch(err){}
+  const slot = slotUnderPoint(e.clientX, e.clientY);
+  slotRow.querySelectorAll('.slot').forEach(s=>s.classList.remove('drop-hover'));
+  card.classList.remove('dragging');
+  card.style.position = card.style.left = card.style.top = card.style.width = '';
+  if(slot){
+    const body = slot.querySelector('.slot-body');
+    const occupied = body.querySelector('.card');
+    if(occupied){ // 已有卡 → 舊卡回手牌
+      occupied.classList.remove('placed');
+      handEl.appendChild(occupied);
+    }
+    card.classList.add('placed');
+    body.appendChild(card);
+    sfx.place();
+  }else if(from && from.classList.contains('slot-body')){
+    handEl.appendChild(card); // 從格中拖出未落在格上 → 回手牌
+  }else{
+    handEl.appendChild(card);
+  }
+  drag = null;
+  updateHandHint();
+  updateConfirm();
+});
+document.addEventListener('pointercancel', (e)=>{
+  if(!drag || e.pointerId !== drag.pointerId) return;
+  forceCancelDrag();
+});
+function slotUnderPoint(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el ? el.closest('.slot') : null;
+}
+function updateHandHint(){
+  let hint = handEl.querySelector('.hand-empty-hint');
+  const empty = handEl.querySelectorAll('.card').length === 0;
+  if(empty && !hint){
+    hint = document.createElement('div');
+    hint.className = 'hand-empty-hint';
+    hint.textContent = '手牌已出完，按下方「✔ 確認」檢查答案！';
+    handEl.appendChild(hint);
+  }else if(!empty && hint){
+    hint.remove();
+  }
+}
+
+/* ══════════ 確認判分 ══════════ */
+btnConfirm.addEventListener('click', ()=>{
+  if(boardLocked || !currentThemeId) return;
+  boardLocked = true;
+  boardEl.classList.add('locked');
+  btnConfirm.disabled = true;
+
+  let correct = 0;
+  const slots = Array.from(slotRow.querySelectorAll('.slot'));
+  slots.forEach((slot, i)=>{
+    const card = slot.querySelector('.card');
+    const ok = card && card.dataset.slot === slot.dataset.key;
+    slot.classList.add(ok ? 'correct' : 'wrong');
+    slot.querySelector('.slot-mark').textContent = ok ? '✓' : '✗';
+    if(ok){
+      correct++;
+      setTimeout(()=>sfx.good(), 120*i); // 放對的格逐一「叮」
+    }
+  });
+  const allCorrect = correct === 6;
+  const score = allCorrect ? 20 : Math.round(correct/6*20);
+  if(allCorrect) setTimeout(()=>sfx.perfect(), 650);
+  else setTimeout(()=>sfx.bad(), 120*6);
+
+  S.results[currentThemeId] = {score, timeMs:attemptMs, allCorrect};
+  saveState();
+  renderMenu();
+  setTimeout(()=>showAnswer(currentThemeId, {correctCount:correct}), allCorrect ? 1300 : 1100);
+});
+
+/* ══════════ 答案核對頁 ══════════ */
+function showAnswer(id, opt){
+  const t = themeById(id);
+  const col = themeColor(id);
+  const res = S.results[id];
+  document.getElementById('answerTitle').textContent = `「${t.title}」正確答案`;
+  const scoreEl = document.getElementById('answerScore');
+  if(res){
+    scoreEl.innerHTML = `本次得分 <b>${res.score}</b> / 20 分 · 用時 ${fmtTime(res.timeMs)}` +
+      (res.allCorrect ? ' 🎯 全對！' : '，答錯的可以按「重新開始」再挑戰');
+  }else{ scoreEl.textContent = ''; }
+  // 玩家本次每格放的卡（若版面還在）
+  const placedByKey = {};
+  if(currentThemeId === id){
+    slotRow.querySelectorAll('.slot').forEach(slot=>{
+      const card = slot.querySelector('.card');
+      if(card) placedByKey[slot.dataset.key] = card.dataset.slot;
+    });
+  }
+  const list = document.getElementById('answerList');
+  list.innerHTML = '';
+  SLOTS.forEach(s=>{
+    const item = document.createElement('div');
+    item.className = 'answer-item';
+    let resultHtml = '';
+    if(placedByKey[s.key] !== undefined){
+      const ok = placedByKey[s.key] === s.key;
+      resultHtml = `<span class="ai-result ${ok?'ok':'ng'}">${ok?'✓ 答對':'✗ 答錯'}</span>`;
+    }
+    item.innerHTML = `
+      <div class="ai-head">
+        <span class="ai-letter" style="background:${col.main}">${s.key}</span>
+        <span class="ai-name">${s.zh}</span>${resultHtml}
+      </div>
+      <div class="ai-text">${t.cards[s.key]}</div>`;
+    list.appendChild(item);
+  });
+  document.getElementById('answerOverlay').classList.remove('hidden');
+}
+document.getElementById('btnCloseAnswer').addEventListener('click', ()=>{
+  document.getElementById('answerOverlay').classList.add('hidden');
+  backToMenu();
+  // 全部主題完成且滿分 → 恭賀畫面＋完成音樂
+  const done = S.drawn.every(id=>S.results[id]);
+  const total = S.drawn.reduce((sum,id)=>sum+(S.results[id]?S.results[id].score:0),0);
+  if(done && total===100 && !S.congratsShown){
+    S.congratsShown = true; saveState();
+    showCongrats();
+  }
+});
+
+/* ══════════ 恭賀畫面 ══════════ */
+function showCongrats(){
+  document.getElementById('congratsOverlay').classList.remove('hidden');
+  sfx.fanfare();
+  confetti();
+}
+document.getElementById('btnCloseCongrats').addEventListener('click', ()=>{
+  document.getElementById('congratsOverlay').classList.add('hidden');
+});
+function confetti(){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = THEME_COLORS.map(c=>c.main).concat(['#ffd166','#fef9ec']);
+  for(let i=0;i<90;i++){
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random()*100 + 'vw';
+    p.style.background = colors[Math.floor(Math.random()*colors.length)];
+    p.style.animationDuration = (2.2 + Math.random()*2.2) + 's';
+    p.style.animationDelay = Math.random()*0.8 + 's';
+    p.style.transform = `rotate(${Math.random()*360}deg)`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 6000);
+  }
+}
+
+/* ══════════ 結算畫面 ══════════ */
+function showResult(){
+  const rows = document.getElementById('resultRows');
+  rows.innerHTML = '';
+  let total = 0;
+  S.drawn.forEach((id, idx)=>{
+    const t = themeById(id);
+    const col = THEME_COLORS[idx];
+    const res = S.results[id];
+    total += res ? res.score : 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="rt-dot" style="background:${col.main}"></span>${t.title}</td>
+      <td class="num">${res ? res.score+' 分' : '未挑戰'}</td>
+      <td class="num">${res ? fmtTime(res.timeMs) : '—'}</td>`;
+    rows.appendChild(tr);
+  });
+  const totalEl = document.getElementById('resultTotal');
+  totalEl.textContent = total;
+  totalEl.classList.toggle('score-full', total===100);
+  document.getElementById('resultTime').textContent = fmtTime(S.totalMs);
+  document.getElementById('resultOverlay').classList.remove('hidden');
+  if(total===100){ sfx.fanfare(); confetti(); }
+
+  const scoreEntry = document.getElementById('scoreEntry');
+  const qualifies = !S.lbRecorded && lbQualifies(total, S.totalMs);
+  scoreEntry.classList.toggle('hidden', !qualifies);
+  if(qualifies) document.getElementById('lbNameInput').value = '';
+}
+document.getElementById('btnSaveScore').addEventListener('click', ()=>{
+  const total = Number(document.getElementById('resultTotal').textContent) || 0;
+  const name = document.getElementById('lbNameInput').value.trim().slice(0,10);
+  lbAddEntry(name, total, S.totalMs);
+  S.lbRecorded = true;
+  saveState();
+  document.getElementById('scoreEntry').classList.add('hidden');
+  toast('已記錄到排行榜！');
+});
+
+/* ══════════ 成績圖：下載／分享 ══════════ */
+function roundRectPath(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function truncateText(s,n){ return s.length>n ? s.slice(0,n-1)+'…' : s; }
+function buildResultCanvas(){
+  const total = Number(document.getElementById('resultTotal').textContent) || 0;
+  const timeText = document.getElementById('resultTime').textContent;
+  const W = 720, H = 560, pad = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.textBaseline = 'alphabetic';
+
+  const bgGrad = ctx.createRadialGradient(W/2,H*0.32,40,W/2,H*0.32,W*0.85);
+  bgGrad.addColorStop(0,'#2f5f9e');
+  bgGrad.addColorStop(1,'#0f2038');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0,0,W,H);
+
+  roundRectPath(ctx, pad, pad, W-pad*2, H-pad*2, 18);
+  ctx.fillStyle = '#fef9ec';
+  ctx.fill();
+
+  ctx.fillStyle = '#2a2438';
+  ctx.font = '900 25px "Microsoft JhengHei","Segoe UI",sans-serif';
+  ctx.fillText('✨ CO-STAR 卡牌配對 — 遊戲結算', pad+26, pad+46);
+  ctx.font = '12px "Microsoft JhengHei",sans-serif';
+  ctx.fillStyle = '#9b8668';
+  ctx.fillText(new Date().toLocaleString('zh-TW'), pad+26, pad+70);
+
+  let y = pad + 110;
+  ctx.strokeStyle = '#ddcfae';
+  ctx.beginPath(); ctx.moveTo(pad+26,y-22); ctx.lineTo(W-pad-26,y-22); ctx.stroke();
+  ctx.font = '700 12px "Microsoft JhengHei",sans-serif';
+  ctx.fillStyle = '#9b8668';
+  ctx.fillText('主題', pad+26, y-30);
+
+  S.drawn.forEach((id, idx)=>{
+    const t = themeById(id);
+    const col = THEME_COLORS[idx];
+    const res = S.results[id];
+    ctx.fillStyle = col.main;
+    ctx.beginPath(); ctx.arc(pad+34, y-5, 6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#2a2438';
+    ctx.font = '15px "Microsoft JhengHei",sans-serif';
+    ctx.fillText(truncateText(t.title, 22), pad+50, y);
+    ctx.font = 'bold 14px Consolas,monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(res ? res.score+' 分' : '未挑戰', W-pad-90, y);
+    ctx.fillText(res ? fmtTime(res.timeMs) : '—', W-pad-26, y);
+    ctx.textAlign = 'left';
+    y += 42;
+  });
+
+  y += 10;
+  const boxW = W-pad*2-52, boxH = 78;
+  roundRectPath(ctx, pad+26, y, boxW, boxH, 12);
+  ctx.fillStyle = '#f6ecd6';
+  ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.font = '12px "Microsoft JhengHei",sans-serif';
+  ctx.fillStyle = '#9b8668';
+  ctx.fillText('總分', pad+26+boxW*0.25, y+22);
+  ctx.fillText('總時間', pad+26+boxW*0.75, y+22);
+  ctx.font = '900 32px Consolas,monospace';
+  ctx.fillStyle = total===100 ? '#e0a83e' : '#2a2438';
+  ctx.fillText(String(total), pad+26+boxW*0.25, y+56);
+  ctx.fillStyle = '#2a2438';
+  ctx.fillText(timeText, pad+26+boxW*0.75, y+56);
+
+  ctx.font = '12px "Microsoft JhengHei",sans-serif';
+  ctx.fillStyle = '#9b8668';
+  ctx.fillText('CO-STAR 卡牌配對練習遊戲 · 創作者：蔡豐全（Mark Tsai）', W/2, H-pad-8);
+  ctx.textAlign = 'left';
+
+  return canvas;
+}
+document.getElementById('btnDownloadResult').addEventListener('click', ()=>{
+  const canvas = buildResultCanvas();
+  canvas.toBlob(function(blob){
+    if(!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'CO-STAR成績_' + Date.now() + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  });
+});
+(function initShareButton(){
+  const shareBtn = document.getElementById('btnShareResult');
+  if(!navigator.share || !navigator.canShare) return;
+  shareBtn.classList.remove('hidden');
+  shareBtn.addEventListener('click', ()=>{
+    const canvas = buildResultCanvas();
+    canvas.toBlob(function(blob){
+      if(!blob) return;
+      const file = new File([blob], 'CO-STAR成績.png', {type:'image/png'});
+      if(navigator.canShare({files:[file]})){
+        navigator.share({
+          files:[file],
+          title:'CO-STAR 卡牌配對成績',
+          text:'我在 CO-STAR 卡牌配對拿下 ' + document.getElementById('resultTotal').textContent + ' 分！'
+        }).catch(()=>{});
+      }else{
+        window.alert('這個瀏覽器不支援分享圖片，請改用「下載成績圖」');
+      }
+    });
+  });
+})();
+document.getElementById('btnResumeGame').addEventListener('click', ()=>{
+  document.getElementById('resultOverlay').classList.add('hidden');
+  S.finished = false;
+  running = true;
+  lastTick = performance.now();
+  updateControls(); saveState();
+});
+document.getElementById('btnNewGame').addEventListener('click', ()=>{
+  document.getElementById('resultOverlay').classList.add('hidden');
+  S = newGameState();
+  currentThemeId = null; attemptMs = 0; boardLocked = false; running = false;
+  saveState();
+  backToMenu();
+  renderTimers(); updateControls();
+  toast('已重抽 5 個新主題，按「▶ 開始」開始新一局！');
+});
+
+/* ══════════ 初始化 ══════════ */
+function initLogo(){
+  const tiles = document.getElementById('logoTiles');
+  'COSTAR'.split('').forEach((ch,i)=>{
+    const sp = document.createElement('span');
+    sp.textContent = ch;
+    sp.style.background = THEME_COLORS[i % THEME_COLORS.length].main;
+    tiles.appendChild(sp);
+  });
+}
+function init(){
+  S = loadState() || newGameState();
+  running = false; // 重新整理後回到暫停待命狀態，按「開始」續走
+  initLogo();
+  renderMenu();
+  renderTimers();
+  updateControls();
+  saveState();
+  // S.finished 從上次工作階段還原時，結算畫面（內含「再玩一局」／「繼續挑戰」）不會自動重開，
+  // 但選單畫面此時「開始」鍵是 disabled、主題卡點下去只會跳 toast——沒有其他入口能離開這個狀態，
+  // 玩家會誤以為整個遊戲卡死（尤其手機瀏覽器把分頁背景回收重載後最容易發生）。這裡自動重開結算畫面補上逃生路徑。
+  if(S.finished) showResult();
+}
+init();
+</script>
+
+<script>
+/* 頂部跑馬燈 — 獨立運作，跟上面遊戲邏輯無關；內容抓自工作區共用的授權伺服器
+   （doPost 不論序號是否有效都會附上 marquee 陣列，這個遊戲沒有序號登入機制，
+   所以直接帶空序號打，只取 marquee 欄位）。跟其他共用同一份跑馬燈 Google Sheet
+   的工具改內容互通，不需要分開維護。抓取失敗就靜默不顯示，不影響離線開玩。 */
+(function () {
+  'use strict';
+  var MARQUEE_CHECK_URL = "https://script.google.com/macros/s/AKfycbwKX0DNNbY8y4nf90BFTHtxgfqJcHHcZasRrgycl4QAe52_hkjMWSkYk4xOsqU-JPCROw/exec";
+  var STORAGE_KEY = 'costarGameMarquee';
+  var REFRESH_MS = 20 * 60 * 1000;
+
+  var bar = document.getElementById('marqueeBar');
+  var track = document.getElementById('marqueeTrack');
+  var lastKey = null;
+
+  function loadCache() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveCache(items) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch (e) {}
+  }
+  // 把「[文字](https://...)」語法轉成可點擊連結，其餘文字維持純文字（用 createTextNode 避免 XSS）
+  function appendParsedText(container, text) {
+    var re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+    var lastIndex = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > lastIndex) container.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+      var a = document.createElement('a');
+      a.href = m[2];
+      a.textContent = m[1];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.color = 'inherit';
+      a.style.textDecoration = 'underline';
+      container.appendChild(a);
+      lastIndex = re.lastIndex;
+    }
+    if (lastIndex < text.length) container.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+  function buildTrackContent(items) {
+    var frag = document.createDocumentFragment();
+    function appendPass() {
+      items.forEach(function (item, idx) {
+        if (idx > 0) frag.appendChild(document.createTextNode('　★　'));
+        appendParsedText(frag, item);
+      });
+    }
+    appendPass();
+    frag.appendChild(document.createTextNode('　★　'));
+    appendPass();
+    return frag;
+  }
+  function render(items) {
+    if (!items || !items.length) return;
+    var key = JSON.stringify(items);
+    if (key === lastKey) return;   // 內容沒變就不重繪，避免 CSS animation 被重置而歸零重跑
+    lastKey = key;
+    track.innerHTML = '';
+    track.appendChild(buildTrackContent(items));
+    bar.classList.add('on');
+    document.body.classList.add('has-marquee');
+    var width = track.scrollWidth / 2;
+    track.style.animationDuration = Math.max(width / 80, 10) + 's';
+  }
+  function fetchMarquee() {
+    fetch(MARQUEE_CHECK_URL, { method: 'POST', body: JSON.stringify({ serial: '' }) })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && Array.isArray(data.marquee) && data.marquee.length) {
+          saveCache(data.marquee);
+          render(data.marquee);
+        }
+      })
+      .catch(function () {});
+  }
+
+  render(loadCache());
+  fetchMarquee();
+  setInterval(fetchMarquee, REFRESH_MS);
+})();
+</script>
+
+<script>
+/* PWA 加入主畫面 — 獨立運作，跟上面遊戲邏輯無關 */
+(function () {
+  'use strict';
+  var deferredPrompt = null;
+  var btn = document.getElementById('installBtn');
+
+  var ua = navigator.userAgent || '';
+  var isIOSDevice = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isMacDesktop = /Macintosh/.test(ua) && !isIOSDevice;
+  var isSafariEngine = /^((?!chrome|crios|fxios|edgios|android).)*safari/i.test(ua);
+  var isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+
+  function fallbackMessage() {
+    if (isIOSDevice) return '請點畫面上的「分享」圖示，選「加入主畫面」';
+    if (isMacDesktop && isSafariEngine) return '請用選單列「檔案」→「加入 Dock」（Safari 17 以上）';
+    return '瀏覽器不支援，或已安裝過';
+  }
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
+  window.addEventListener('appinstalled', function () {
+    deferredPrompt = null;
+  });
+
+  if (btn) {
+    if (isStandalone) {
+      btn.style.display = 'none';
+    } else {
+      btn.addEventListener('click', function () {
+        if (!deferredPrompt) {
+          window.alert(fallbackMessage());
+          return;
+        }
+        try {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(function () { deferredPrompt = null; });
+        } catch (err) {
+          window.alert(fallbackMessage());
+        }
+      });
+    }
+  }
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('service-worker.js').catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
