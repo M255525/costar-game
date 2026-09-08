@@ -832,6 +832,7 @@ setInterval(()=>{
   S.totalMs += dt;
   if(currentThemeId && !boardLocked) attemptMs += dt;
   renderTimers();
+  saveState(); // 每 tick 都存檔，避免重新整理後總時間回退到上一次動作發生時的舊數值
 }, 200);
 function renderTimers(){
   document.getElementById('totalTimer').textContent = fmtTime(S.totalMs);

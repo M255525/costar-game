@@ -47,6 +47,10 @@ Sites 的沙箱 iframe 可能禁 localStorage——程式內 save/load 已包 tr
 
 原本彩帶只在「5 主題全對、總分 100」的恭賀畫面／結算畫面觸發；使用者要求**每一題（單一主題）只要 6 格全對，當下就要灑花**，不必等到全部主題都完成。`btnConfirm` 判分邏輯的 `allCorrect` 分支已補上 `confetti()`（與 `sfx.perfect()` 同一個 `setTimeout(...,650)` 一起觸發），最終「5 主題全對」的彩帶（`showCongrats()`／`showResult()` 的 `total===100` 分支）維持不動、不受影響——兩者各自獨立觸發，單題與總結完成都會灑花。
 
+## 重新整理後總時間回退的修法（2026-09-08）
+
+原本（沿用 crispe-game 的既有邏輯）計時的 200ms tick 只更新記憶體中的 `S.totalMs`，**沒有**在每個 tick 呼叫 `saveState()`——只有按「開始／暫停／完成」、確認判分、開新局等特定操作時才存檔。這代表：只要玩家在兩次操作之間重新整理頁面，`localStorage` 裡的 `totalMs` 還停留在上一次操作當下的舊數值，重整後總時間會「倒退」回那個舊數值，而非玩家實際看到的秒數。已在計時 tick 內加一行 `saveState()`，讓總時間每 200ms 就持久化一次，重整後精準銜接、不再回退。此問題在 crispe-game 應該同樣存在（架構逐字相同），但本次僅修 costar-game，未回頭改 crispe-game。
+
 ## 指令
 
 無建置／測試指令。修改後直接開瀏覽器驗證，或 `python -m http.server <port> --directory costar-game` 暫起伺服器測完關閉。自動化驗證以 Playwright `browser_evaluate` 派發 PointerEvent 模擬拖曳最可靠；關鍵流程放在單一 evaluate 內完成，避免真人操作同一個可見瀏覽器視窗干擾跨呼叫的狀態斷言。
