@@ -1088,7 +1088,7 @@ btnConfirm.addEventListener('click', ()=>{
   });
   const allCorrect = correct === 6;
   const score = allCorrect ? 20 : Math.round(correct/6*20);
-  if(allCorrect) setTimeout(()=>sfx.perfect(), 650);
+  if(allCorrect) setTimeout(()=>{ sfx.perfect(); confetti(); }, 650);
   else setTimeout(()=>sfx.bad(), 120*6);
 
   S.results[currentThemeId] = {score, timeMs:attemptMs, allCorrect};
